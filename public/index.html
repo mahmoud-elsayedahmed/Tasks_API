@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>مهامي</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Tahoma, Arial, sans-serif;
+        color: #1f2937;
+        background: linear-gradient(135deg, #eff6ff, #f8fafc 45%, #ecfdf5);
+      }
+      main { width: min(680px, calc(100% - 32px)); margin: 70px auto; }
+      header { text-align: center; margin-bottom: 26px; }
+      h1 { margin: 0 0 10px; color: #1d4ed8; font-size: 2rem; }
+      header p { margin: 0; color: #64748b; }
+      .card {
+        padding: 24px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        box-shadow: 0 14px 35px rgb(15 23 42 / 8%);
+      }
+      form { display: flex; gap: 10px; }
+      input {
+        flex: 1;
+        min-width: 0;
+        padding: 13px 14px;
+        font: inherit;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        outline: none;
+      }
+      input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+      button {
+        cursor: pointer;
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: bold;
+        color: white;
+        background: #2563eb;
+      }
+      button:hover { background: #1d4ed8; }
+      .section-title { display: flex; justify-content: space-between; align-items: center; margin: 26px 0 12px; }
+      h2 { margin: 0; font-size: 1.1rem; }
+      #taskCount { color: #64748b; font-size: .9rem; }
+      ul { padding: 0; margin: 0; list-style: none; display: grid; gap: 10px; }
+      li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px; background: #f8fafc; border-radius: 10px; }
+      .delete { padding: 7px 11px; background: #ef4444; font-size: .85rem; }
+      .delete:hover { background: #dc2626; }
+      .empty { justify-content: center; color: #94a3b8; }
+      #message { min-height: 22px; margin: 12px 0 0; color: #dc2626; font-size: .9rem; }
+      @media (max-width: 480px) { main { margin-top: 35px; } form { flex-direction: column; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>قائمة مهامي</h1>
+        <p>دوّن مهامك الصغيرة وأنجزها خطوة بخطوة.</p>
+      </header>
+
+      <section class="card">
+        <form id="taskForm">
+          <input id="taskInput" name="title" placeholder="اكتب مهمة جديدة..." autocomplete="off" required />
+          <button type="submit">إضافة</button>
+        </form>
+        <p id="message" role="alert"></p>
+
+        <div class="section-title">
+          <h2>المهام</h2>
+          <span id="taskCount">0 مهام</span>
+        </div>
+        <ul id="taskList"></ul>
+      </section>
+    </main>
+
+    <script>
+      // غيّر المسارات هنا فقط لو سميت الـ endpoints باسم مختلف.
+      const ADD_TASK_URL = "/tasks";       // POST  body: { title: "..." }
+      const DELETE_TASK_URL = (id) => `/tasks/${id}`; // DELETE
+
+      const form = document.querySelector("#taskForm");
+      const input = document.querySelector("#taskInput");
+      const list = document.querySelector("#taskList");
+      const count = document.querySelector("#taskCount");
+      const message = document.querySelector("#message");
+      const tasks = [];
+
+      function renderTasks() {
+        list.innerHTML = "";
+        count.textContent = `${tasks.length} ${tasks.length === 1 ? "مهمة" : "مهام"}`;
+        if (!tasks.length) {
+          list.innerHTML = '<li class="empty">لا توجد مهام الآن — أضف أول مهمة لك.</li>';
+          return;
+        }
+        tasks.forEach((task) => {
+          const item = document.createElement("li");
+          const title = document.createElement("span");
+          const removeButton = document.createElement("button");
+          title.textContent = task.title;
+          removeButton.textContent = "حذف";
+          removeButton.className = "delete";
+          removeButton.addEventListener("click", () => deleteTask(task.id));
+          item.append(title, removeButton);
+          list.append(item);
+        });
+      }
+
+      async function deleteTask(id) {
+        message.textContent = "";
+        try {
+          const response = await fetch(DELETE_TASK_URL(id), { method: "DELETE" });
+          if (!response.ok) throw new Error();
+          const taskIndex = tasks.findIndex((task) => task.id === id);
+          tasks.splice(taskIndex, 1);
+          renderTasks();
+        } catch {
+          message.textContent = "تعذر حذف المهمة. تأكد من endpoint الحذف في الباك إند.";
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const title = input.value.trim();
+        if (!title) return;
+        message.textContent = "";
+        try {
+          const response = await fetch(ADD_TASK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title })
+          });
+          if (!response.ok) throw new Error();
+          const savedTask = await response.json();
+          tasks.push({ id: savedTask.id, title: savedTask.title || title });
+          input.value = "";
+          renderTasks();
+        } catch {
+          message.textContent = "تعذر إضافة المهمة. جهّز endpoint الإضافة ثم جرّب مرة أخرى.";
+        }
+      });
+
+      renderTasks();
+    </script>
+  </body>
+</html>
